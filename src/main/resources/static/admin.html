@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 30px;
+      color: #333;
+    }
+
+    .dashboard-container {
+      max-width: 500px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+
+    h2, h3 {
+      color: #2c3e50;
+    }
+
+    select, input[type="datetime-local"], button {
+      width: 100%;
+      padding: 12px 14px;
+      margin: 12px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      box-sizing: border-box;
+      transition: 0.3s;
+    }
+
+    select:focus, input[type="datetime-local"]:focus {
+      border-color: #007bff;
+      outline: none;
+      box-shadow: 0 0 6px rgba(0, 123, 255, 0.3);
+    }
+
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    label {
+      margin-top: 10px;
+      font-weight: 500;
+    }
+
+    #auctionMsg {
+      margin-top: 15px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .success {
+      color: #28a745;
+    }
+
+    .error {
+      color: #dc3545;
+    }
+
+    /* Logout button */
+    .logout-btn {
+      
+      top: 20px;
+      right: 20px;
+      background-color: #dc3545;
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .logout-btn:hover {
+      background-color: #c82333;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    
+    <h2>Welcome, Admin</h2>
+    <h3>Create Auction</h3>
+
+    <select id="productSelect">
+      <option value="">-- Select Product --</option>
+    </select>
+
+    <label for="startTime">Start Time (yyyy-MM-ddTHH:mm)</label>
+    <input type="datetime-local" id="startTime" />
+
+    <label for="endTime">End Time (yyyy-MM-ddTHH:mm)</label>
+    <input type="datetime-local" id="endTime" />
+
+    <button onclick="createAuction()">Create Auction</button>
+	<button class="logout-btn" onclick="logout()">Logout</button>
+
+    <p id="auctionMsg"></p>
+  </div>
+
+  <script>
+    let products = [];
+
+    async function loadProducts() {
+      try {
+        const res = await fetch("http://localhost:8080/api/products/");
+        if (!res.ok) throw new Error("Failed to load products.");
+        products = await res.json();
+
+        const select = document.getElementById("productSelect");
+        products.forEach(p => {
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = `${p.name} (₹${p.basePrice})`;
+          select.appendChild(opt);
+        });
+      } catch (error) {
+        console.error("Error loading products:", error);
+        showMessage("Failed to load products.", "error");
+      }
+    }
+
+    async function createAuction() {
+      const productId = document.getElementById("productSelect").value;
+      const startTime = document.getElementById("startTime").value;
+      const endTime = document.getElementById("endTime").value;
+
+      if (!productId || !startTime || !endTime) {
+        showMessage("All fields are required.", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch("http://localhost:8080/api/auctions/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, startTime, endTime })
+        });
+
+        const msg = await res.text();
+        if (res.ok) {
+          showMessage(msg, "success");
+        } else {
+          showMessage(msg || "Failed to create auction.", "error");
+        }
+      } catch (error) {
+        console.error("Error creating auction:", error);
+        showMessage("Failed to create auction. Please try again later.", "error");
+      }
+    }
+
+    function showMessage(message, type) {
+      const msgElement = document.getElementById("auctionMsg");
+      msgElement.innerText = message;
+      msgElement.className = type;
+    }
+
+    function logout() {
+      // Optional: Clear session/local storage if needed
+      // localStorage.clear();
+
+      // Redirect to login page
+      window.location.href = "login.html";
+    }
+
+    window.onload = loadProducts;
+  </script>
+</body>
+</html>

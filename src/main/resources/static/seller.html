@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Seller Dashboard</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .dashboard-container {
+      background-color: #fff;
+      padding: 30px 40px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 800px;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .top-bar h2 {
+      margin: 0;
+      color: #2c3e50;
+    }
+
+    .top-bar button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .top-bar button:hover {
+      background-color: #0056b3;
+    }
+
+    h3 {
+      color: #333;
+      margin-bottom: 16px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #28a745;
+      color: white;
+      font-weight: bold;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    #uploadMessage {
+      font-weight: 500;
+      margin-top: 10px;
+    }
+
+    .error {
+      color: #e74c3c;
+    }
+
+    .product {
+      background-color: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 20px;
+    }
+
+    .product img {
+      width: 100px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="top-bar">
+      <h2>Welcome, Seller</h2>
+      <button onclick="goToApprovalPage()">Go to Approvals</button>
+    </div>
+
+    <h3>Upload Product</h3>
+    <input type="text" id="name" placeholder="Product Name" />
+    <textarea id="description" placeholder="Description"></textarea>
+    <input type="number" id="basePrice" placeholder="Base Price" />
+    <input type="file" id="image" />
+    <button id="uploadBtn" onclick="uploadProduct()">Upload</button>
+    <p id="uploadMessage"></p>
+
+    <h3>Your Products</h3>
+    <div id="productList"></div>
+	<button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem("user"));
+    const sellerId = user?.id;
+
+    if (!sellerId) {
+      document.body.innerHTML = '<p class="error">Seller not logged in. Please login first.</p>';
+      throw new Error("Seller not found in localStorage");
+    }
+
+    function goToApprovalPage() {
+      window.location.href = "seller-approve.html";
+    }
+	function logout() {
+	     // Clear session/localStorage if needed
+	     // localStorage.clear();
+	
+	     // Redirect to login page
+	     window.location.href = "login.html";
+	   }
+
+    async function uploadProduct() {
+      const name = document.getElementById("name").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const basePrice = document.getElementById("basePrice").value.trim();
+      const imageFile = document.getElementById("image").files[0];
+      const uploadMsg = document.getElementById("uploadMessage");
+      const uploadBtn = document.getElementById("uploadBtn");
+
+      if (!name || !description || !basePrice || !imageFile) {
+        uploadMsg.innerText = "Please fill all fields and select an image.";
+        uploadMsg.classList.add("error");
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      uploadMsg.innerText = "Uploading...";
+      uploadMsg.classList.remove("error");
+
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("description", description);
+      formData.append("basePrice", basePrice);
+      formData.append("file", imageFile);
+      formData.append("sellerId", sellerId);
+
+      try {
+        const response = await fetch("http://localhost:8080/api/products/upload", {
+          method: "POST",
+          body: formData
+        });
+
+        const msg = await response.text();
+        uploadMsg.innerText = msg;
+        if (!response.ok) uploadMsg.classList.add("error");
+
+        if (response.ok) {
+          document.getElementById("name").value = "";
+          document.getElementById("description").value = "";
+          document.getElementById("basePrice").value = "";
+          document.getElementById("image").value = "";
+          fetchProducts();
+        }
+      } catch (err) {
+        uploadMsg.innerText = "Error: " + err.message;
+        uploadMsg.classList.add("error");
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    }
+
+    async function fetchProducts() {
+      const res = await fetch(`http://localhost:8080/api/products/seller/${sellerId}`);
+      const products = await res.json();
+
+      const container = document.getElementById("productList");
+      container.innerHTML = "";
+
+      products.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "product";
+        div.innerHTML = `
+          <strong>${p.name}</strong><br/>
+          ₹${p.basePrice}<br/>
+          <p>${p.description}</p>
+          <img src="http://localhost:8080/uploads/${p.imagePath}" alt="${p.name}" />
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    window.onload = fetchProducts;
+  </script>
+</body>
+</html>

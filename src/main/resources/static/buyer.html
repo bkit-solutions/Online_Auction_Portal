@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Buyer Dashboard</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 30px;
+      color: #333;
+    }
+
+    .dashboard-container {
+      max-width: 700px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+
+    h2 {
+      color: #2c3e50;
+    }
+
+    .auction {
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 15px 0;
+      background-color: #fdfdfd;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .auction img {
+      width: 120px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+
+    label {
+      font-weight: 500;
+      display: inline-block;
+      margin-top: 10px;
+    }
+
+    input[type="number"] {
+      padding: 10px;
+      margin-top: 6px;
+      margin-bottom: 10px;
+      width: 150px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 10px 18px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    #message {
+      margin-top: 20px;
+      font-weight: 600;
+      color: #007bff;
+    }
+
+    .logout-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background-color: #dc3545;
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .logout-btn:hover {
+      background-color: #c82333;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <button class="logout-btn" onclick="logout()">Logout</button>
+    <h2>Welcome, Buyer</h2>
+    <div id="auctionList"></div>
+    <p id="message"></p>
+  </div>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem("user"));
+    const buyerId = user?.id;
+
+    async function loadActiveAuctions() {
+      try {
+        const res = await fetch("http://localhost:8080/api/auctions/active");
+        const auctions = await res.json();
+
+        const container = document.getElementById("auctionList");
+        container.innerHTML = "";
+
+        auctions.forEach(a => {
+          const product = a.product;
+
+          const div = document.createElement("div");
+          div.className = "auction";
+
+          div.innerHTML = `
+            <strong style="font-size: 18px;">${product.name}</strong><br/>
+            <span style="color: #555;">Base Price: ₹${product.basePrice}</span><br/>
+            <p>${product.description}</p>
+            <img src="http://localhost:8080/uploads/${product.imagePath}" alt="${product.name}" /><br/>
+            <label>Quote Price:</label><br/>
+            <input type="number" id="quote-${a.id}" placeholder="₹" />
+            <br/>
+            <button onclick="submitQuote(${a.id})">Submit Quote</button>
+          `;
+
+          container.appendChild(div);
+        });
+      } catch (error) {
+        console.error("Error fetching auctions:", error);
+        document.getElementById("message").innerText = "Failed to load auctions.";
+      }
+    }
+
+    async function submitQuote(auctionId) {
+      const input = document.getElementById(`quote-${auctionId}`);
+      const amount = parseFloat(input.value);
+
+      if (!amount || amount <= 0) {
+        alert("Please enter a valid quote amount.");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:8080/api/quotes/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ auctionId, buyerId, amount })
+        });
+
+        const msg = await response.text();
+        document.getElementById("message").innerText = msg;
+      } catch (error) {
+        console.error("Error submitting quote:", error);
+        document.getElementById("message").innerText = "Submission failed.";
+      }
+    }
+
+    function logout() {
+      // Clear session/localStorage if needed
+      // localStorage.clear();
+
+      // Redirect to login page
+      window.location.href = "login.html";
+    }
+
+    window.onload = loadActiveAuctions;
+  </script>
+</body>
+</html>
